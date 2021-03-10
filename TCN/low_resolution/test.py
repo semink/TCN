@@ -11,8 +11,6 @@ from TCN.low_resolution.utils import get_traffic_data, TimeseriesDataset
 parser = argparse.ArgumentParser(description='Sequence Modeling - Low resolution TCN')
 parser.add_argument('--batch_size', type=int, default=32, metavar='N',
                     help='batch size (default: 32)')
-parser.add_argument('--cuda', action='store_false',
-                    help='use CUDA (default: True)')
 parser.add_argument('--dropout', type=float, default=0.1,
                     help='dropout applied to layers (default: 0.1)')
 parser.add_argument('--clip', type=float, default=-1,
@@ -23,8 +21,8 @@ parser.add_argument('--ksize', type=int, default=7,
                     help='kernel size (default: 7)')
 parser.add_argument('--levels', type=int, default=8,
                     help='# of levels (default: 8)')
-parser.add_argument('--seq_len', type=int, default=400,
-                    help='sequence length (default: 400)')
+parser.add_argument('--seq_len', type=int, default=288,
+                    help='sequence length (default: 288)')
 parser.add_argument('--log-interval', type=int, default=100, metavar='N',
                     help='report interval (default: 100')
 parser.add_argument('--lr', type=float, default=4e-3,
@@ -41,8 +39,7 @@ args = parser.parse_args()
 
 torch.manual_seed(args.seed)
 if torch.cuda.is_available():
-    if not args.cuda:
-        print("WARNING: You have a CUDA device, so you should probably run with --cuda")
+    print("You have a CUDA device, so use CUDA for training...")
 
 n_classes = 1
 batch_size = args.batch_size
@@ -53,7 +50,7 @@ compress_dim = args.comp_dim
 print(args)
 print("Producing data...")
 df_train, df_test = get_traffic_data()
-train_dataset = TimeseriesDataset(df_train)
+train_dataset = TimeseriesDataset(df_train, seq_len=seq_length)
 train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=False)
 input_dim = df_train.shape[-1]
 
@@ -61,10 +58,10 @@ input_dim = df_train.shape[-1]
 num_channels = [args.nhid] * args.levels
 kernel_size = args.ksize
 dropout = args.dropout
-model = LowResolutionTCN(input_dim, compress_dim, num_channels,
+model = LowResolutionTCN(input_dim, compress_dim, seq_length, num_channels,
                          kernel_size=kernel_size, dropout=dropout)
 
-if args.cuda:
+if torch.cuda.is_available():
     model.cuda()
 
 lr = args.lr
@@ -77,9 +74,10 @@ def train(epoch):
     batch_idx = 1
     total_loss = 0
     for i, (x, y) in enumerate(train_loader):
-        if args.cuda:
+        if torch.cuda.is_available():
             x = x.cuda()
             y = y.cuda()
+        x, y = x.float(), y.float()
         optimizer.zero_grad()
         output = model(x)
         loss = F.mse_loss(output, y)
@@ -92,9 +90,9 @@ def train(epoch):
 
         if batch_idx % args.log_interval == 0:
             cur_loss = total_loss / args.log_interval
-            processed = min(i + batch_size, X_train.size(0))
+            processed = min(i + batch_size, df_train.shape[0])
             print('Train Epoch: {:2d} [{:6d}/{:6d} ({:.0f}%)]\tLearning rate: {:.4f}\tLoss: {:.6f}'.format(
-                epoch, processed, X_train.size(0), 100. * processed / X_train.size(0), lr, cur_loss))
+                epoch, processed, df_train.shape[0], 100. * processed / df_train.shape[0], lr, cur_loss))
             total_loss = 0
 
 
@@ -106,7 +104,7 @@ def train(epoch):
 #         print('\nTest set: Average loss: {:.6f}\n'.format(test_loss.item()))
 #         return test_loss.item()
 
-
-for ep in range(1, epochs + 1):
-    train(ep)
-    tloss = evaluate()
+if __name__=="__main__":
+    for ep in range(1, epochs + 1):
+        train(ep)
+        # tloss = evaluate()

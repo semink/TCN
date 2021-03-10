@@ -25,13 +25,14 @@ class Decoder(nn.Module):
 class LowResolutionTCN(nn.Module):
     def __init__(self, input_size: int,
                  compress_dim: int,
+                 seq_length: int,
                  num_channels: list,
                  kernel_size: int,
                  dropout: float):
         super(LowResolutionTCN, self).__init__()
         self.encoder = Encoder(input_size, compress_dim)
         self.decoder = Decoder(compress_dim, input_size)
-        self.tcn = TemporalConvNet(input_size, num_channels, kernel_size=kernel_size, dropout=dropout)
+        self.tcn = TemporalConvNet(seq_length, num_channels, kernel_size=kernel_size, dropout=dropout)
         self.linear = nn.Linear(num_channels[-1], compress_dim)
         self.init_weights()
 
