@@ -4,7 +4,7 @@ import torch.optim as optim
 import torch.nn.functional as F
 import sys
 from TCN.low_resolution.model import LowResolutionTCN
-from TCN.adding_problem.utils import load_dataset
+from TCN.low_resolution.utils import load_dataset
 
 sys.path.append("../../")
 
