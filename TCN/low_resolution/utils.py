@@ -10,7 +10,7 @@ class TimeseriesDataset(torch.utils.data.Dataset):
         self.seq_len = seq_len
 
     def __len__(self):
-        return self.X.__len__() - (self.seq_len - 1)
+        return self.X.__len__() - (self.seq_len)
 
     def __getitem__(self, index):
         return self.X[index:index + self.seq_len], self.X[index + self.seq_len]
