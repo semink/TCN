@@ -134,6 +134,5 @@ if __name__ == "__main__":
     for ep in range(epochs):
         train(ep + 1)
     valid_loss = evaluate(x_valid, y_valid)
-    writer.add_hparams(args,
-                  {'hparam/loss': valid_loss})
+    writer.add_hparams(vars(args), {'hparam/loss': valid_loss})
     writer.close()
