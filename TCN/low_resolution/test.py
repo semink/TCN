@@ -106,15 +106,15 @@ def train(epoch):
 
         if (batch_idx + 1) % args.log_interval == 0:
             cur_loss = total_loss / args.log_interval
-            processed = min((batch_idx + 1) * batch_size, df_train.shape[0])
+            processed = min((batch_idx + 1) * batch_size, total_train_N)
             valid_loss = evaluate(x_valid, y_valid)
-            print(f'Train Epoch: {epoch:2d} [{processed:6d}/{total_train_N:6d}\
+            print(f'Train Epoch: {epoch+1:2d} [{processed:6d}/{total_train_N:6d}\
                     ({100. * processed / total_train_N:.0f}%)]\t\
                     Learning rate: {lr:.4f}\t\
                     Loss: {cur_loss:.6f}\t\
                     Valid Loss: {valid_loss:.6f}')
-            writer.add_scalar("Loss/train", cur_loss, epoch * (1 + processed / df_train.shape[0]))
-            writer.add_scalar("Loss/valid", valid_loss, epoch * (1 + processed / df_train.shape[0]))
+            writer.add_scalar("Loss/train", cur_loss, epoch + processed / total_train_N)
+            writer.add_scalar("Loss/valid", valid_loss, epoch + processed / total_train_N)
             total_loss = 0
 
 
@@ -127,6 +127,6 @@ def evaluate(x, y):
 
 
 if __name__ == "__main__":
-    for ep in range(1, epochs + 1):
+    for ep in range(epochs):
         train(ep)
     writer.close()
