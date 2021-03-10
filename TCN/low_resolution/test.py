@@ -100,9 +100,10 @@ def train(epoch):
         if (batch_idx + 1) % args.log_interval == 0:
             cur_loss = total_loss / args.log_interval
             processed = min((batch_idx + 1) * batch_size, df_train.shape[0])
-            print('Train Epoch: {:2d} [{:6d}/{:6d} ({:.0f}%)]\tLearning rate: {:.4f}\tLoss: {:.6f}'.format(
-                epoch, processed, df_train.shape[0], 100. * processed / df_train.shape[0], lr, cur_loss))
-            evaluate(x_valid, y_valid)
+            valid_loss = evaluate(x_valid, y_valid)
+            print('Train Epoch: {:2d} [{:6d}/{:6d} ({:.0f}%)]\tLearning rate: {:.4f}\tLoss: {:.6f}\tValid Loss: {:.6f}'.format(
+                epoch, processed, df_train.shape[0], 100. * processed / df_train.shape[0], lr, cur_loss, valid_loss))
+
             total_loss = 0
 
 
@@ -111,8 +112,7 @@ def evaluate(x, y):
     with torch.no_grad():
         output = model(x)
         test_loss = loss_fn(output, y)
-        print('\nValidation loss: {:.6f}\n'.format(test_loss.item()))
-        # return test_loss.item()
+    return test_loss.item()
 
 
 if __name__ == "__main__":
