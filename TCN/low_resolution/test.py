@@ -108,14 +108,14 @@ def train(epoch):
             cur_loss = total_loss / args.log_interval
             processed = min((batch_idx + 1) * batch_size, total_train_N)
             valid_loss = evaluate(x_valid, y_valid)
-            print(f'Train Epoch: {epoch+1:2d} [{processed:6d}/{total_train_N:6d}\
+            print(f'Train Epoch: {epoch:2d} [{processed:6d}/{total_train_N:6d}\
                     ({100. * processed / total_train_N:.0f}%)]\t\
                     Learning rate: {lr:.4f}\t\
                     Loss: {cur_loss:.6f}\t\
                     Valid Loss: {valid_loss:.6f}')
-            writer.add_scalar("Loss/train", cur_loss, epoch + processed / total_train_N)
-            writer.add_scalar("Loss/valid", valid_loss, epoch + processed / total_train_N)
             total_loss = 0
+    writer.add_scalar("Loss/train", cur_loss, epoch)
+    writer.add_scalar("Loss/valid", valid_loss, epoch)
 
 
 def evaluate(x, y):
@@ -128,5 +128,5 @@ def evaluate(x, y):
 
 if __name__ == "__main__":
     for ep in range(epochs):
-        train(ep)
+        train(ep+1)
     writer.close()
