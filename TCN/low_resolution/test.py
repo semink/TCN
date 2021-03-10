@@ -59,6 +59,8 @@ valid_loader = torch.utils.data.DataLoader(valid_dataset,
                                            batch_size=df_valid.shape[0]-seq_length, shuffle=False)
 x_valid, y_valid = next(iter(valid_loader))
 x_valid, y_valid = x_valid.float(), y_valid.float()
+if torch.cuda.is_available():
+    x_valid, y_valid = x_valid.cuda(), y_valid.cuda()
 
 input_dim = df_train.shape[-1]
 
