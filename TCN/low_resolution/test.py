@@ -5,8 +5,6 @@ import torch.nn.functional as F
 import sys
 from torch.utils.tensorboard import SummaryWriter
 
-writer = SummaryWriter()
-
 sys.path.append("../../")
 from TCN.low_resolution.model import LowResolutionTCN
 from TCN.low_resolution.utils import get_traffic_data, TimeseriesDataset
@@ -76,6 +74,9 @@ dropout = args.dropout
 model = LowResolutionTCN(input_dim, compress_dim, seq_length, num_channels,
                          kernel_size=kernel_size, dropout=dropout)
 
+writer = SummaryWriter()
+writer.add_graph(model)
+
 if torch.cuda.is_available():
     model.cuda()
 
@@ -114,8 +115,7 @@ def train(epoch):
                     Loss: {cur_loss:.6f}\t\
                     Valid Loss: {valid_loss:.6f}')
             total_loss = 0
-    writer.add_scalar("Loss/train", cur_loss, epoch)
-    writer.add_scalar("Loss/valid", valid_loss, epoch)
+    writer.add_scalars("MAE", {'Training': cur_loss, 'Validation': valid_loss}, epoch)
 
 
 def evaluate(x, y):
