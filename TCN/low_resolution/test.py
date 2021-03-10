@@ -3,10 +3,10 @@ import argparse
 import torch.optim as optim
 import torch.nn.functional as F
 import sys
-from TCN.low_resolution.model import LowResolutionTCN
-from TCN.low_resolution.utils import load_dataset
 
 sys.path.append("../../")
+from TCN.low_resolution.model import LowResolutionTCN
+from TCN.low_resolution.utils import load_dataset
 
 parser = argparse.ArgumentParser(description='Sequence Modeling - Low resolution TCN')
 parser.add_argument('--batch_size', type=int, default=32, metavar='N',
