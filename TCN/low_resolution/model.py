@@ -5,6 +5,7 @@ from TCN.tcn import TemporalConvNet
 class Encoder(nn.Module):
     def __init__(self, in_dim: int,
                  out_dim: int):
+        super(Encoder, self).__init__()
         self.linear = nn.Linear(in_features=in_dim, out_features=out_dim)
 
     def forward(self, x):
@@ -14,6 +15,7 @@ class Encoder(nn.Module):
 class Decoder(nn.Module):
     def __init__(self, in_dim: int,
                  out_dim: int):
+        super(Decoder, self).__init__()
         self.linear = nn.Linear(in_features=in_dim, out_features=out_dim)
 
     def forward(self, x):
