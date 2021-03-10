@@ -122,7 +122,6 @@ def train(epoch):
             global_step += 1
 
 
-
 def evaluate(x, y):
     model.eval()
     with torch.no_grad():
@@ -133,5 +132,8 @@ def evaluate(x, y):
 
 if __name__ == "__main__":
     for ep in range(epochs):
-        train(ep+1)
+        train(ep + 1)
+    valid_loss = evaluate(x_valid, y_valid)
+    writer.add_hparams(args,
+                  {'hparam/loss': valid_loss})
     writer.close()
