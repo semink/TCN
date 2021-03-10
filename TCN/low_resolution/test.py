@@ -75,10 +75,11 @@ model = LowResolutionTCN(input_dim, compress_dim, seq_length, num_channels,
                          kernel_size=kernel_size, dropout=dropout)
 
 writer = SummaryWriter()
-writer.add_graph(model, x_valid[:1, :, :])
 
 if torch.cuda.is_available():
     model.cuda()
+
+writer.add_graph(model, x_valid[:1, :, :])
 
 lr = args.lr
 optimizer = getattr(optim, args.optim)(model.parameters(), lr=lr)
