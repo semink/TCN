@@ -6,7 +6,7 @@ import sys
 
 sys.path.append("../../")
 from TCN.low_resolution.model import LowResolutionTCN
-from TCN.low_resolution.utils import load_dataset
+from TCN.low_resolution.utils import get_traffic_data, TimeseriesDataset
 
 parser = argparse.ArgumentParser(description='Sequence Modeling - Low resolution TCN')
 parser.add_argument('--batch_size', type=int, default=32, metavar='N',
@@ -52,9 +52,10 @@ compress_dim = args.comp_dim
 
 print(args)
 print("Producing data...")
-X_train, Y_train, X_test, Y_test = load_dataset(seq_size=288, train_test_ratio=0.8)
-
-input_dim = X_train.shape[-1]
+df_train, df_test = get_traffic_data()
+train_dataset = TimeseriesDataset(df_train)
+train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=False)
+input_dim = df_train.shape[-1]
 
 # Note: We use a very simple setting here (assuming all levels have the same # of channels.
 num_channels = [args.nhid] * args.levels
@@ -65,10 +66,6 @@ model = LowResolutionTCN(input_dim, compress_dim, num_channels,
 
 if args.cuda:
     model.cuda()
-    X_train = X_train.cuda()
-    Y_train = Y_train.cuda()
-    X_test = X_test.cuda()
-    Y_test = Y_test.cuda()
 
 lr = args.lr
 optimizer = getattr(optim, args.optim)(model.parameters(), lr=lr)
@@ -79,11 +76,10 @@ def train(epoch):
     model.train()
     batch_idx = 1
     total_loss = 0
-    for i in range(0, X_train.size(0), batch_size):
-        if i + batch_size > X_train.size(0):
-            x, y = X_train[i:], Y_train[i:]
-        else:
-            x, y = X_train[i:(i + batch_size)], Y_train[i:(i + batch_size)]
+    for i, (x, y) in enumerate(train_loader):
+        if args.cuda:
+            x = x.cuda()
+            y = y.cuda()
         optimizer.zero_grad()
         output = model(x)
         loss = F.mse_loss(output, y)
@@ -102,13 +98,13 @@ def train(epoch):
             total_loss = 0
 
 
-def evaluate():
-    model.eval()
-    with torch.no_grad():
-        output = model(X_test)
-        test_loss = F.mse_loss(output, Y_test)
-        print('\nTest set: Average loss: {:.6f}\n'.format(test_loss.item()))
-        return test_loss.item()
+# def evaluate():
+#     model.eval()
+#     with torch.no_grad():
+#         output = model(X_test)
+#         test_loss = F.mse_loss(output, Y_test)
+#         print('\nTest set: Average loss: {:.6f}\n'.format(test_loss.item()))
+#         return test_loss.item()
 
 
 for ep in range(1, epochs + 1):
