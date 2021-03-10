@@ -49,9 +49,17 @@ compress_dim = args.comp_dim
 
 print(args)
 print("Producing data...")
-df_train, df_test = get_traffic_data()
+df_train, df_valid = get_traffic_data()
 train_dataset = TimeseriesDataset(df_train, seq_len=seq_length)
 train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=False)
+
+valid_dataset = TimeseriesDataset(df_valid, seq_len=seq_length)
+# Load entire dataset for validation
+valid_loader = torch.utils.data.DataLoader(valid_dataset,
+                                           batch_size=df_valid.shape[0]-seq_length, shuffle=False)
+x_valid, y_valid = next(valid_loader)
+x_valid, y_valid = x_valid.float(), y_valid.float()
+
 input_dim = df_train.shape[-1]
 
 # Note: We use a very simple setting here (assuming all levels have the same # of channels.
@@ -66,6 +74,7 @@ if torch.cuda.is_available():
 
 lr = args.lr
 optimizer = getattr(optim, args.optim)(model.parameters(), lr=lr)
+loss_fn = F.l1_loss
 
 
 def train(epoch):
@@ -79,30 +88,31 @@ def train(epoch):
         x, y = x.float(), y.float()
         optimizer.zero_grad()
         output = model(x)
-        loss = F.l1_loss(output, y)
+        loss = loss_fn(output, y)
         loss.backward()
         if args.clip > 0:
             torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)
         optimizer.step()
         total_loss += loss.item()
 
-        if (batch_idx+1) % args.log_interval == 0:
+        if (batch_idx + 1) % args.log_interval == 0:
             cur_loss = total_loss / args.log_interval
-            processed = min((batch_idx+1)*batch_size, df_train.shape[0])
+            processed = min((batch_idx + 1) * batch_size, df_train.shape[0])
             print('Train Epoch: {:2d} [{:6d}/{:6d} ({:.0f}%)]\tLearning rate: {:.4f}\tLoss: {:.6f}'.format(
                 epoch, processed, df_train.shape[0], 100. * processed / df_train.shape[0], lr, cur_loss))
+            evaluate(x_valid, y_valid)
             total_loss = 0
 
 
-# def evaluate():
-#     model.eval()
-#     with torch.no_grad():
-#         output = model(X_test)
-#         test_loss = F.mse_loss(output, Y_test)
-#         print('\nTest set: Average loss: {:.6f}\n'.format(test_loss.item()))
-#         return test_loss.item()
+def evaluate(x, y):
+    model.eval()
+    with torch.no_grad():
+        output = model(x)
+        test_loss = loss_fn(output, y)
+        print('\nValidation loss: {:.6f}\n'.format(test_loss.item()))
+        # return test_loss.item()
 
-if __name__=="__main__":
+
+if __name__ == "__main__":
     for ep in range(1, epochs + 1):
         train(ep)
-        # tloss = evaluate()
