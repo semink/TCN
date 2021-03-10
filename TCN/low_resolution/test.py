@@ -87,9 +87,11 @@ loss_fn = F.l1_loss
 
 total_train_N = df_train.shape[0] - seq_length
 
+global_step = 0
+
 
 def train(epoch):
-    global lr
+    global lr, global_step
     model.train()
     total_loss = 0
     for batch_idx, (x, y) in enumerate(train_loader):
@@ -116,7 +118,9 @@ def train(epoch):
                     Loss: {cur_loss:.6f}\t\
                     Valid Loss: {valid_loss:.6f}')
             total_loss = 0
-    writer.add_scalars("MAE", {'Training': cur_loss, 'Validation': valid_loss}, epoch)
+            writer.add_scalars("MAE", {'Training': cur_loss, 'Validation': valid_loss}, global_step)
+            global_step += 1
+
 
 
 def evaluate(x, y):
