@@ -71,26 +71,24 @@ optimizer = getattr(optim, args.optim)(model.parameters(), lr=lr)
 def train(epoch):
     global lr
     model.train()
-    batch_idx = 1
     total_loss = 0
-    for i, (x, y) in enumerate(train_loader):
+    for batch_idx, (x, y) in enumerate(train_loader):
         if torch.cuda.is_available():
             x = x.cuda()
             y = y.cuda()
         x, y = x.float(), y.float()
         optimizer.zero_grad()
         output = model(x)
-        loss = F.mse_loss(output, y)
+        loss = F.l1_loss(output, y)
         loss.backward()
         if args.clip > 0:
             torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)
         optimizer.step()
-        batch_idx += 1
         total_loss += loss.item()
 
-        if batch_idx % args.log_interval == 0:
+        if (batch_idx+1) % args.log_interval == 0:
             cur_loss = total_loss / args.log_interval
-            processed = min(i + batch_size, df_train.shape[0])
+            processed = min((batch_idx+1)*batch_size, df_train.shape[0])
             print('Train Epoch: {:2d} [{:6d}/{:6d} ({:.0f}%)]\tLearning rate: {:.4f}\tLoss: {:.6f}'.format(
                 epoch, processed, df_train.shape[0], 100. * processed / df_train.shape[0], lr, cur_loss))
             total_loss = 0
