@@ -3,6 +3,9 @@ import argparse
 import torch.optim as optim
 import torch.nn.functional as F
 import sys
+from torch.utils.tensorboard import SummaryWriter
+
+writer = SummaryWriter()
 
 sys.path.append("../../")
 from TCN.low_resolution.model import LowResolutionTCN
@@ -48,6 +51,7 @@ epochs = args.epochs
 compress_dim = args.comp_dim
 
 print(args)
+
 print("Producing data...")
 df_train, df_valid = get_traffic_data()
 train_dataset = TimeseriesDataset(df_train, seq_len=seq_length)
@@ -56,9 +60,10 @@ train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size,
 valid_dataset = TimeseriesDataset(df_valid, seq_len=seq_length)
 # Load entire dataset for validation
 valid_loader = torch.utils.data.DataLoader(valid_dataset,
-                                           batch_size=df_valid.shape[0]-seq_length, shuffle=False)
+                                           batch_size=df_valid.shape[0] - seq_length, shuffle=False)
 x_valid, y_valid = next(iter(valid_loader))
 x_valid, y_valid = x_valid.float(), y_valid.float()
+
 if torch.cuda.is_available():
     x_valid, y_valid = x_valid.cuda(), y_valid.cuda()
 
@@ -77,6 +82,8 @@ if torch.cuda.is_available():
 lr = args.lr
 optimizer = getattr(optim, args.optim)(model.parameters(), lr=lr)
 loss_fn = F.l1_loss
+
+total_train_N = df_train.shape[0] - seq_length
 
 
 def train(epoch):
@@ -101,9 +108,13 @@ def train(epoch):
             cur_loss = total_loss / args.log_interval
             processed = min((batch_idx + 1) * batch_size, df_train.shape[0])
             valid_loss = evaluate(x_valid, y_valid)
-            print('Train Epoch: {:2d} [{:6d}/{:6d} ({:.0f}%)]\tLearning rate: {:.4f}\tLoss: {:.6f}\tValid Loss: {:.6f}'.format(
-                epoch, processed, df_train.shape[0], 100. * processed / df_train.shape[0], lr, cur_loss, valid_loss))
-
+            print(f'Train Epoch: {epoch:2d} [{processed:6d}/{total_train_N:6d}\
+                    ({100. * processed / total_train_N:.0f}%)]\t\
+                    Learning rate: {lr:.4f}\t\
+                    Loss: {cur_loss:.6f}\t\
+                    Valid Loss: {valid_loss:.6f}')
+            writer.add_scalar("Loss/train", cur_loss, epoch * (1 + processed / df_train.shape[0]))
+            writer.add_scalar("Loss/valid", valid_loss, epoch * (1 + processed / df_train.shape[0]))
             total_loss = 0
 
 
@@ -118,3 +129,4 @@ def evaluate(x, y):
 if __name__ == "__main__":
     for ep in range(1, epochs + 1):
         train(ep)
+    writer.close()
