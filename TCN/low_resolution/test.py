@@ -3,18 +3,18 @@ import argparse
 import torch.optim as optim
 import torch.nn.functional as F
 import sys
-from TCN.adding_problem.model import TCN
-from TCN.adding_problem.utils import data_generator
+from TCN.low_resolution.model import LowResolutionTCN
+from TCN.adding_problem.utils import load_dataset
 
 sys.path.append("../../")
 
-parser = argparse.ArgumentParser(description='Sequence Modeling - The Adding Problem')
+parser = argparse.ArgumentParser(description='Sequence Modeling - Low resolution TCN')
 parser.add_argument('--batch_size', type=int, default=32, metavar='N',
                     help='batch size (default: 32)')
 parser.add_argument('--cuda', action='store_false',
                     help='use CUDA (default: True)')
-parser.add_argument('--dropout', type=float, default=0.0,
-                    help='dropout applied to layers (default: 0.0)')
+parser.add_argument('--dropout', type=float, default=0.1,
+                    help='dropout applied to layers (default: 0.1)')
 parser.add_argument('--clip', type=float, default=-1,
                     help='gradient clip, -1 means no clip (default: -1)')
 parser.add_argument('--epochs', type=int, default=10,
@@ -35,6 +35,8 @@ parser.add_argument('--nhid', type=int, default=30,
                     help='number of hidden units per layer (default: 30)')
 parser.add_argument('--seed', type=int, default=1111,
                     help='random seed (default: 1111)')
+parser.add_argument('--comp_dim', type=int, default=2,
+                    help='compressed dimension (default: 2)')
 args = parser.parse_args()
 
 torch.manual_seed(args.seed)
@@ -42,22 +44,24 @@ if torch.cuda.is_available():
     if not args.cuda:
         print("WARNING: You have a CUDA device, so you should probably run with --cuda")
 
-input_channels = 2
 n_classes = 1
 batch_size = args.batch_size
 seq_length = args.seq_len
 epochs = args.epochs
+compress_dim = args.comp_dim
 
 print(args)
 print("Producing data...")
-X_train, Y_train = data_generator(50000, seq_length)
-X_test, Y_test = data_generator(1000, seq_length)
+X_train, Y_train, X_test, Y_test = load_dataset(seq_size=288, train_test_ratio=0.8)
+
+input_dim = X_train.shape[-1]
 
 # Note: We use a very simple setting here (assuming all levels have the same # of channels.
-channel_sizes = [args.nhid] * args.levels
+num_channels = [args.nhid] * args.levels
 kernel_size = args.ksize
 dropout = args.dropout
-model = TCN(input_channels, n_classes, channel_sizes, kernel_size=kernel_size, dropout=dropout)
+model = LowResolutionTCN(input_dim, compress_dim, num_channels,
+                         kernel_size=kernel_size, dropout=dropout)
 
 if args.cuda:
     model.cuda()
