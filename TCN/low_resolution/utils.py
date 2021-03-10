@@ -6,7 +6,7 @@ import pandas as pd
 
 def generate_dataset(seq_size, df):
     X, Y = [], []
-    for i in range(df.size[0] - seq_size - 1):
+    for i in range(df.shape[0] - seq_size - 1):
         X.append(df.iloc[i:i + seq_size].values)
         Y.append(df.iloc[i + seq_size + 1].values)
     return torch.from_numpy(np.asarray(X)), torch.from_numpy(np.asarray(Y))
@@ -18,9 +18,8 @@ def load_dataset(seq_size=288, train_test_ratio=0.8):
 
     df_raw = pd.read_csv(url_data, index_col=0)
     df_raw.index = pd.to_datetime(df_raw.index)
-
-    train_df = df_raw.iloc[:int(train_test_ratio * df_raw.size[0])]
-    test_df = df_raw.iloc[int(train_test_ratio * df_raw.size[0]):]
+    train_df = df_raw.iloc[:int(train_test_ratio * df_raw.shape[0])]
+    test_df = df_raw.iloc[int(train_test_ratio * df_raw.shape[0]):]
 
     X_train, Y_train = generate_dataset(seq_size, train_df)
     X_test, Y_test = generate_dataset(seq_size, test_df)
