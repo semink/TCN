@@ -98,7 +98,7 @@ def train(config, checkpoint_dir=None):
     print("Finished Training")
 
 
-def main(num_samples=10, max_num_epochs=10, gpus_per_trial=2):
+def main(num_samples=50, max_num_epochs=10, gpus_per_trial=3):
     config = {"input_dim": tune.choice([325]),
               "compress_dim": tune.sample_from(lambda _: 2 ** np.random.randint(1, 8)),
               "seq_length": tune.sample_from(lambda _: 2 ** np.random.randint(1, 8)),
