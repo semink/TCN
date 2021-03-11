@@ -1,15 +1,15 @@
-import torch
-import argparse
-import torch.optim as optim
-from torch import nn
-import sys, os
-import numpy as np
+import os
+import sys
 from functools import partial
+
+import numpy as np
+import torch
+import torch.optim as optim
 from ray import tune
 from ray.tune import CLIReporter
 from ray.tune.schedulers import ASHAScheduler
+from torch import nn
 
-sys.path.append("../../")
 from TCN.low_resolution.model import LowResolutionTCN
 from TCN.low_resolution.utils import get_traffic_data, TimeseriesDataset
 
