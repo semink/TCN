@@ -116,8 +116,8 @@ def main(num_samples=10, max_num_epochs=10, gpus_per_trial=2):
         reduction_factor=2
     )
     reporter = CLIReporter(
-        parameter_colums=["compress_dim", "seq_length", "nhid", "levels",
-                          "kernel_size", "dropout", "lr", "batch_size"],
+        parameter_columns=["compress_dim", "seq_length", "nhid", "levels",
+                           "kernel_size", "dropout", "lr", "batch_size"],
         metric_columns=["loss", "training_iteration"]
     )
     result = tune.run(
