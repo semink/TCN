@@ -14,6 +14,26 @@ from TCN.low_resolution.model import LowResolutionTCN
 from TCN.low_resolution.utils import get_traffic_data, TimeseriesDataset
 
 
+def evaluate(valid_loader, model, device, criterion, steps_ahead=1):
+    # Validation loss
+    val_loss = 0.0
+    val_steps = 0
+    total = 0
+    for i, (x, y) in enumerate(valid_loader):
+        with torch.no_grad():
+            x, y = x.float().to(device), y.float().to(device)
+
+            for _ in range(steps_ahead):
+                output = model(x)
+                x = torch.cat((x[:, 1:, :], output), dim=1)
+            total += y.size(0)
+            loss = criterion(output, y)
+            val_loss += loss.cpu().numpy()
+            val_steps += 1
+    loss = val_loss / val_steps
+    return loss
+
+
 def train(config, checkpoint_dir=None):
     # Note: We use a very simple setting here (assuming all levels have the same # of channels.
     model = LowResolutionTCN(input_size=config['input_dim'],
@@ -40,13 +60,13 @@ def train(config, checkpoint_dir=None):
 
     # Load dataset
     df_train, df_valid = get_traffic_data()
-    train_dataset = TimeseriesDataset(df_train/90, seq_len=config['seq_length']) # stupid scaling
+    train_dataset = TimeseriesDataset(df_train, seq_len=config['seq_length'])
     train_loader = torch.utils.data.DataLoader(train_dataset,
                                                batch_size=config['batch_size'],
                                                shuffle=True,
                                                num_workers=8)
 
-    valid_dataset = TimeseriesDataset(df_valid/90, seq_len=config['seq_length']) # stupid scaling
+    valid_dataset = TimeseriesDataset(df_valid, seq_len=config['seq_length'])
     # Load entire dataset for validation
     valid_loader = torch.utils.data.DataLoader(valid_dataset,
                                                batch_size=config['batch_size'],
@@ -73,33 +93,25 @@ def train(config, checkpoint_dir=None):
 
             if i % 2000 == 1999:  # print every 2000 mini-batches
                 print("[%d, %5d] loss: %.3f" % (epoch + 1, i + 1,
-                                                running_loss*90 / epoch_steps))
+                                                running_loss * 90 / epoch_steps))
                 running_loss = 0
 
         # Validation loss
-        val_loss = 0.0
-        val_steps = 0
-        total = 0
-        for i, (x, y) in enumerate(valid_loader):
-            with torch.no_grad():
-                x, y = x.float().to(device), y.float().to(device)
-
-                output = model(x)
-                total += y.size(0)
-                loss = criterion(output, y)
-                val_loss += loss.cpu().numpy()
-                val_steps += 1
+        loss = {}
+        for steps in config['steps_ahead']:
+            loss[f'{steps}'] = evaluate(valid_loader, model, device, criterion, steps_ahead=steps)
 
         with tune.checkpoint_dir(epoch) as checkpoint_dir:
             path = os.path.join(checkpoint_dir, "checkpoint")
             torch.save((model.state_dict(), optimizer.state_dict()), path)
 
-        tune.report(loss=(val_loss*90 / val_steps))
+        tune.report(**loss)
     print("Finished Training")
 
 
 def main(num_samples=50, max_num_epochs=10, gpus_per_trial=3):
-    config = {"input_dim": tune.choice([325]),
+    config = {"input_dim": 325,
+              "steps_ahead": [3, 6, 12],
               "compress_dim": tune.sample_from(lambda _: 2 ** np.random.randint(1, 8)),
               "seq_length": tune.sample_from(lambda _: 2 ** np.random.randint(1, 8)),
               "nhid": tune.sample_from(lambda _: 2 ** np.random.randint(3, 7)),

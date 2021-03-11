@@ -3,15 +3,16 @@ import pandas as pd
 
 
 class TimeseriesDataset(torch.utils.data.Dataset):
-    def __init__(self, df, seq_len=1):
+    def __init__(self, df, seq_len=1, y_offset=1):
         self.X = df.values
         self.seq_len = seq_len
+        self.offset = y_offset
 
     def __len__(self):
-        return self.X.__len__() - self.seq_len
+        return self.X.__len__() - (self.seq_len + self.y_offset-1)
 
     def __getitem__(self, index):
-        return self.X[index:index + self.seq_len], self.X[index + self.seq_len]
+        return self.X[index:index + self.seq_len], self.X[index + self.seq_len + self.y_offset - 1]
 
 
 def get_traffic_data(train_test_ratio=0.8):
