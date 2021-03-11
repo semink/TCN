@@ -66,12 +66,6 @@ def train(config, checkpoint_dir=None):
                                                shuffle=True,
                                                num_workers=8)
 
-    valid_dataset = TimeseriesDataset(df_valid, seq_len=config['seq_length'])
-    # Load entire dataset for validation
-    valid_loader = torch.utils.data.DataLoader(valid_dataset,
-                                               batch_size=config['batch_size'],
-                                               shuffle=True,
-                                               num_workers=8)
 
     for epoch in range(10):
         running_loss = 0.0
@@ -99,6 +93,13 @@ def train(config, checkpoint_dir=None):
         # Validation loss
         loss = {}
         for steps in config['steps_ahead']:
+            valid_dataset = TimeseriesDataset(df_valid, seq_len=config['seq_length'],
+                                              y_offset=steps)
+            # Load entire dataset for validation
+            valid_loader = torch.utils.data.DataLoader(valid_dataset,
+                                                       batch_size=config['batch_size'],
+                                                       shuffle=True,
+                                                       num_workers=8)
             loss[f'{steps}'] = evaluate(valid_loader, model, device, criterion, steps_ahead=steps)
 
         with tune.checkpoint_dir(epoch) as checkpoint_dir:
