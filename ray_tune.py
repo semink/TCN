@@ -25,7 +25,7 @@ def train(config, checkpoint_dir=None):
     device = "cpu"
     if torch.cuda.is_available():
         device = "cuda:0"
-        if torch.cuda.device.count() > 1:
+        if torch.cuda.device_count() > 1:
             model = nn.DataParallel(model)
     model.to(device)
 
