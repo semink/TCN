@@ -19,7 +19,7 @@ def train(config, checkpoint_dir=None):
     model = LowResolutionTCN(input_size=config['input_dim'],
                              compress_dim=config['compress_dim'],
                              seq_length=config['seq_length'],
-                             num_channels=config['nhid'] * config['levels'],
+                             num_channels=[config['nhid']] * config['levels'],
                              kernel_size=config['kernel_size'],
                              dropout=config['dropout'])
     device = "cpu"
