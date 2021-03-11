@@ -2,11 +2,11 @@ import torch
 import pandas as pd
 
 
-class TimeseriesDataset(torch.utils.data.Dataset):
+class TimeSeriesDataset(torch.utils.data.Dataset):
     def __init__(self, df, seq_len=1, y_offset=1):
         self.X = df.values
         self.seq_len = seq_len
-        self.offset = y_offset
+        self.y_offset = y_offset
 
     def __len__(self):
         return self.X.__len__() - (self.seq_len + self.y_offset-1)

@@ -11,7 +11,7 @@ from ray.tune.schedulers import ASHAScheduler
 from torch import nn
 
 from TCN.low_resolution.model import LowResolutionTCN
-from TCN.low_resolution.utils import get_traffic_data, TimeseriesDataset
+from TCN.low_resolution.utils import get_traffic_data, TimeSeriesDataset
 
 
 def evaluate(valid_loader, model, device, criterion, steps_ahead=1):
@@ -60,7 +60,7 @@ def train(config, checkpoint_dir=None):
 
     # Load dataset
     df_train, df_valid = get_traffic_data()
-    train_dataset = TimeseriesDataset(df_train, seq_len=config['seq_length'])
+    train_dataset = TimeSeriesDataset(df_train, seq_len=config['seq_length'])
     train_loader = torch.utils.data.DataLoader(train_dataset,
                                                batch_size=config['batch_size'],
                                                shuffle=True,
@@ -93,7 +93,7 @@ def train(config, checkpoint_dir=None):
         # Validation loss
         loss = {}
         for steps in config['steps_ahead']:
-            valid_dataset = TimeseriesDataset(df_valid, seq_len=config['seq_length'],
+            valid_dataset = TimeSeriesDataset(df_valid, seq_len=config['seq_length'],
                                               y_offset=steps)
             # Load entire dataset for validation
             valid_loader = torch.utils.data.DataLoader(valid_dataset,
