@@ -40,13 +40,13 @@ def train(config, checkpoint_dir=None):
 
     # Load dataset
     df_train, df_valid = get_traffic_data()
-    train_dataset = TimeseriesDataset(df_train, seq_len=config['seq_length'])
+    train_dataset = TimeseriesDataset(df_train/90, seq_len=config['seq_length']) # stupid scaling
     train_loader = torch.utils.data.DataLoader(train_dataset,
                                                batch_size=config['batch_size'],
                                                shuffle=True,
                                                num_workers=8)
 
-    valid_dataset = TimeseriesDataset(df_valid, seq_len=config['seq_length'])
+    valid_dataset = TimeseriesDataset(df_valid/90, seq_len=config['seq_length']) # stupid scaling
     # Load entire dataset for validation
     valid_loader = torch.utils.data.DataLoader(valid_dataset,
                                                batch_size=config['batch_size'],
@@ -73,7 +73,7 @@ def train(config, checkpoint_dir=None):
 
             if i % 2000 == 1999:  # print every 2000 mini-batches
                 print("[%d, %5d] loss: %.3f" % (epoch + 1, i + 1,
-                                                running_loss / epoch_steps))
+                                                running_loss*90 / epoch_steps))
                 running_loss = 0
 
         # Validation loss
@@ -94,7 +94,7 @@ def train(config, checkpoint_dir=None):
             path = os.path.join(checkpoint_dir, "checkpoint")
             torch.save((model.state_dict(), optimizer.state_dict()), path)
 
-        tune.report(loss=(val_loss / val_steps))
+        tune.report(loss=(val_loss*90 / val_steps))
     print("Finished Training")
 
 
