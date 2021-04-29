@@ -9,6 +9,7 @@ from ray import tune
 from ray.tune import CLIReporter
 from ray.tune.schedulers import ASHAScheduler
 from torch import nn
+import pandas as pd
 
 from TCN.low_resolution.model import LowResolutionTCN
 from TCN.low_resolution.utils import get_traffic_data, TimeSeriesDataset
@@ -22,7 +23,6 @@ def evaluate(valid_loader, model, device, criterion, steps_ahead=1):
     for i, (x, y) in enumerate(valid_loader):
         with torch.no_grad():
             x, y = x.float().to(device), y.float().to(device)
-
             for _ in range(steps_ahead):
                 output = model(x)
                 x = torch.cat((x[:, 1:, :], output), dim=1)
@@ -37,7 +37,6 @@ def evaluate(valid_loader, model, device, criterion, steps_ahead=1):
 def train(config, checkpoint_dir=None):
     # Note: We use a very simple setting here (assuming all levels have the same # of channels.
     model = LowResolutionTCN(input_size=config['input_dim'],
-                             compress_dim=config['compress_dim'],
                              seq_length=config['seq_length'],
                              num_channels=[config['nhid']] * config['levels'],
                              kernel_size=config['kernel_size'],
@@ -59,13 +58,15 @@ def train(config, checkpoint_dir=None):
         optimizer.load_state_dict(optimizer_state)
 
     # Load dataset
-    df_train, df_valid = get_traffic_data()
+    # df_train, df_valid = get_traffic_data()
+    df_0 = pd.read_csv('low_resol.csv', index_col=0)
+    df_0.index = pd.to_datetime(df_0.index)
+    df_train, df_valid = df_0[:'2017-05-15'], df_0['2017-05-16':]
     train_dataset = TimeSeriesDataset(df_train, seq_len=config['seq_length'])
     train_loader = torch.utils.data.DataLoader(train_dataset,
                                                batch_size=config['batch_size'],
                                                shuffle=True,
                                                num_workers=8)
-
 
     for epoch in range(10):
         running_loss = 0.0
@@ -111,9 +112,8 @@ def train(config, checkpoint_dir=None):
 
 
 def main(num_samples=50, max_num_epochs=10, gpus_per_trial=3):
-    config = {"input_dim": 325,
+    config = {"input_dim": 3,
               "steps_ahead": [3, 6, 12],
-              "compress_dim": tune.sample_from(lambda _: 2 ** np.random.randint(1, 8)),
               "seq_length": tune.sample_from(lambda _: 2 ** np.random.randint(1, 8)),
               "nhid": tune.sample_from(lambda _: 2 ** np.random.randint(3, 7)),
               "levels": tune.sample_from(lambda _: 2 ** np.random.randint(1, 4)),
@@ -129,7 +129,7 @@ def main(num_samples=50, max_num_epochs=10, gpus_per_trial=3):
         reduction_factor=2
     )
     reporter = CLIReporter(
-        parameter_columns=["compress_dim", "seq_length", "nhid", "levels",
+        parameter_columns=["seq_length", "nhid", "levels",
                            "kernel_size", "dropout", "lr", "batch_size"],
         metric_columns=["loss", "training_iteration"]
     )
