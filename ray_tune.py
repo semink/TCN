@@ -22,7 +22,7 @@ def evaluate(valid_loader, model, device, criterion, steps_ahead=1):
     total = 0
     for i, (x, y) in enumerate(valid_loader):
         with torch.no_grad():
-            x, y = x.float().to(device), y.float().to(device)
+            x, y = x.float().to(device), y.float().to(device).unsqueeze(1)
             for _ in range(steps_ahead):
                 output = model(x)
                 x = torch.cat((x[:, 1:, :], output), dim=1)
@@ -59,7 +59,7 @@ def train(config, checkpoint_dir=None):
 
     # Load dataset
     # df_train, df_valid = get_traffic_data()
-    df_0 = pd.read_csv('low_resol.csv', index_col=0)
+    df_0 = pd.read_csv('/home/semin_noadmin/workspace/TCN/low_resol.csv', index_col=0).fillna(0)
     df_0.index = pd.to_datetime(df_0.index)
     df_train, df_valid = df_0[:'2017-05-15'], df_0['2017-05-16':]
     train_dataset = TimeSeriesDataset(df_train, seq_len=config['seq_length'])
@@ -72,8 +72,7 @@ def train(config, checkpoint_dir=None):
         running_loss = 0.0
         epoch_steps = 0
         for i, (x, y) in enumerate(train_loader):
-            x, y = x.float().to(device), y.float().to(device)
-
+            x, y = x.float().to(device), y.float().to(device).unsqueeze(1)
             # zero the parameter gradients
             optimizer.zero_grad()
 
@@ -122,7 +121,7 @@ def main(num_samples=50, max_num_epochs=10, gpus_per_trial=3):
               "lr": tune.loguniform(1e-4, 1e-1),
               "batch_size": tune.choice([8, 16, 32, 64, 128])}
     scheduler = ASHAScheduler(
-        metric="loss",
+        metric="3",
         mode="min",
         max_t=max_num_epochs,
         grace_period=1,
@@ -131,7 +130,7 @@ def main(num_samples=50, max_num_epochs=10, gpus_per_trial=3):
     reporter = CLIReporter(
         parameter_columns=["seq_length", "nhid", "levels",
                            "kernel_size", "dropout", "lr", "batch_size"],
-        metric_columns=["loss", "training_iteration"]
+        metric_columns=["3","6","12", "training_iteration"]
     )
     result = tune.run(
         partial(train),

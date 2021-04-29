@@ -18,5 +18,5 @@ class LowResolutionTCN(nn.Module):
 
     def forward(self, x):
         x = self.tcn(x)
-        x = self.linear(x[:, :, -1])
+        x = self.linear(x[:, :, -1]).unsqueeze(1)
         return x
