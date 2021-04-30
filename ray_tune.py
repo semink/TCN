@@ -64,8 +64,8 @@ def train(config, checkpoint_dir=None):
     df_train, df_valid = df_0[:'2017-05-15'], df_0['2017-05-16':]
     scaler = StandardScaler()
     scaler.fit(df_train)
-    X_train = scaler.transform(df_train)
-    X_valid = scaler.transform(df_valid)
+    X_train = scaler.transform(df_train).values
+    X_valid = scaler.transform(df_valid).values
 
     train_dataset = TimeSeriesDataset(X_train, seq_len=config['seq_length'])
     train_loader = torch.utils.data.DataLoader(train_dataset,
