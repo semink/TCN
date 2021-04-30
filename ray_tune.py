@@ -27,7 +27,7 @@ def evaluate(valid_loader, scaler, model, device, criterion, steps_ahead=1):
                 output = model(x)
                 x = torch.cat((x[:, 1:, :], output), dim=1)
             total += y.size(0)
-            loss = criterion(scaler.inverse_transform(output), scaler.inverse_transform(y))
+            loss = criterion(scaler.inverse_transform(output.cpu()), scaler.inverse_transform(y.cpu()))
             val_loss += loss.cpu().numpy()
             val_steps += 1
     loss = val_loss / val_steps
