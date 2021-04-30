@@ -14,6 +14,8 @@ import pandas as pd
 from TCN.low_resolution.model import LowResolutionTCN
 from TCN.low_resolution.utils import get_traffic_data, TimeSeriesDataset, StandardScaler
 
+#from sklearn.preprocessing import StandardScaler
+
 
 def evaluate(valid_loader, scaler, model, device, criterion, steps_ahead=1):
     # Validation loss
@@ -27,7 +29,8 @@ def evaluate(valid_loader, scaler, model, device, criterion, steps_ahead=1):
                 output = model(x)
                 x = torch.cat((x[:, 1:, :], output), dim=1)
             total += y.size(0)
-            loss = criterion(scaler.inverse_transform(output.cpu()), scaler.inverse_transform(y.cpu()))
+            loss = criterion(torch.from_numpy(np.apply_along_axis(scaler.inverse_transform, -1, output.cpu())), 
+                    torch.from_numpy(np.apply_along_axis(scaler.inverse_transform, -1, y.cpu())))
             val_loss += loss.cpu().numpy()
             val_steps += 1
     loss = val_loss / val_steps
@@ -63,9 +66,8 @@ def train(config, checkpoint_dir=None):
     df_0.index = pd.to_datetime(df_0.index)
     df_train, df_valid = df_0[:'2017-05-15'], df_0['2017-05-16':]
     scaler = StandardScaler()
-    scaler.fit(df_train)
-    X_train = scaler.transform(df_train).values
-    X_valid = scaler.transform(df_valid).values
+    X_train = scaler.fit_transform(df_train.values)
+    X_valid = scaler.transform(df_valid.values)
 
     train_dataset = TimeSeriesDataset(X_train, seq_len=config['seq_length'])
     train_loader = torch.utils.data.DataLoader(train_dataset,
