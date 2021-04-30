@@ -120,7 +120,7 @@ def train(config, checkpoint_dir=None):
 def main(num_samples=50, max_num_epochs=10, gpus_per_trial=3):
     config = {"input_dim": 3,
               "steps_ahead": [3, 6, 12],
-              "seq_length": tune.sample_from(lambda _: 2 ** np.random.randint(1, 8)),
+              "seq_length": tune.sample_from(lambda _: 2 ** np.random.randint(4, 9)),
               "nhid": tune.sample_from(lambda _: 2 ** np.random.randint(3, 7)),
               "levels": tune.sample_from(lambda _: 2 ** np.random.randint(1, 4)),
               "kernel_size": tune.sample_from(lambda _: 2 ** np.random.randint(1, 5)),
@@ -149,7 +149,8 @@ def main(num_samples=50, max_num_epochs=10, gpus_per_trial=3):
     )
 
     best_trial = result.get_best_trial("loss", "min", "last")
-    print("Best trial config: {}".format(best_trial.config))
+    #print("Best trial config: {}".format(best_trial.config))
+    print(f"Best trial: {best_trial}")
     print("Best trial final validation loss: {}".format(
         best_trial.last_result["loss"]))
 
@@ -173,4 +174,4 @@ def main(num_samples=50, max_num_epochs=10, gpus_per_trial=3):
 
 
 if __name__ == "__main__":
-    main(num_samples=10, max_num_epochs=10, gpus_per_trial=2)
+    main(num_samples=20, max_num_epochs=10, gpus_per_trial=2)
