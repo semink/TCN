@@ -3,8 +3,8 @@ import pandas as pd
 
 
 class TimeSeriesDataset(torch.utils.data.Dataset):
-    def __init__(self, df, seq_len=1, y_offset=1):
-        self.X = df.values
+    def __init__(self, X, seq_len=1, y_offset=1):
+        self.X = X
         self.seq_len = seq_len
         self.y_offset = y_offset
 

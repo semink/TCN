@@ -14,8 +14,9 @@ import pandas as pd
 from TCN.low_resolution.model import LowResolutionTCN
 from TCN.low_resolution.utils import get_traffic_data, TimeSeriesDataset
 
+from sklearn.preprocessing import StandardScaler
 
-def evaluate(valid_loader, model, device, criterion, steps_ahead=1):
+def evaluate(valid_loader, scaler, model, device, criterion, steps_ahead=1):
     # Validation loss
     val_loss = 0.0
     val_steps = 0
@@ -27,7 +28,7 @@ def evaluate(valid_loader, model, device, criterion, steps_ahead=1):
                 output = model(x)
                 x = torch.cat((x[:, 1:, :], output), dim=1)
             total += y.size(0)
-            loss = criterion(output, y)
+            loss = criterion(scaler.inverse_transform(output), scaler.inverse_transform(y))
             val_loss += loss.cpu().numpy()
             val_steps += 1
     loss = val_loss / val_steps
@@ -62,7 +63,11 @@ def train(config, checkpoint_dir=None):
     df_0 = pd.read_csv('/home/semin_noadmin/workspace/TCN/low_resol.csv', index_col=0).fillna(0)
     df_0.index = pd.to_datetime(df_0.index)
     df_train, df_valid = df_0[:'2017-05-15'], df_0['2017-05-16':]
-    train_dataset = TimeSeriesDataset(df_train, seq_len=config['seq_length'])
+    scaler = StandardScaler()
+    X_train = scaler.fit_transform(df_train)
+    X_valid = scaler.transform(df_valid)
+
+    train_dataset = TimeSeriesDataset(X_train, seq_len=config['seq_length'])
     train_loader = torch.utils.data.DataLoader(train_dataset,
                                                batch_size=config['batch_size'],
                                                shuffle=True,
@@ -93,14 +98,14 @@ def train(config, checkpoint_dir=None):
         # Validation loss
         loss = {}
         for steps in config['steps_ahead']:
-            valid_dataset = TimeSeriesDataset(df_valid, seq_len=config['seq_length'],
+            valid_dataset = TimeSeriesDataset(X_valid, seq_len=config['seq_length'],
                                               y_offset=steps)
             # Load entire dataset for validation
             valid_loader = torch.utils.data.DataLoader(valid_dataset,
                                                        batch_size=config['batch_size'],
                                                        shuffle=True,
                                                        num_workers=8)
-            loss[f'{steps}'] = evaluate(valid_loader, model, device, criterion, steps_ahead=steps)
+            loss[f'{steps}'] = evaluate(valid_loader, scaler, model, device, criterion, steps_ahead=steps)
 
         with tune.checkpoint_dir(epoch) as checkpoint_dir:
             path = os.path.join(checkpoint_dir, "checkpoint")
