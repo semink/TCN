@@ -12,9 +12,8 @@ from torch import nn
 import pandas as pd
 
 from TCN.low_resolution.model import LowResolutionTCN
-from TCN.low_resolution.utils import get_traffic_data, TimeSeriesDataset
+from TCN.low_resolution.utils import get_traffic_data, TimeSeriesDataset, StandardScaler
 
-from sklearn.preprocessing import StandardScaler
 
 def evaluate(valid_loader, scaler, model, device, criterion, steps_ahead=1):
     # Validation loss
@@ -28,7 +27,7 @@ def evaluate(valid_loader, scaler, model, device, criterion, steps_ahead=1):
                 output = model(x)
                 x = torch.cat((x[:, 1:, :], output), dim=1)
             total += y.size(0)
-            loss = criterion(scaler.inverse_transform(output.cpu()), scaler.inverse_transform(y.cpu()))
+            loss = criterion(scaler.inverse_transform(output), scaler.inverse_transform(y))
             val_loss += loss.cpu().numpy()
             val_steps += 1
     loss = val_loss / val_steps
@@ -64,7 +63,8 @@ def train(config, checkpoint_dir=None):
     df_0.index = pd.to_datetime(df_0.index)
     df_train, df_valid = df_0[:'2017-05-15'], df_0['2017-05-16':]
     scaler = StandardScaler()
-    X_train = scaler.fit_transform(df_train)
+    scaler.fit(df_train)
+    X_train = scaler.transform(df_train)
     X_valid = scaler.transform(df_valid)
 
     train_dataset = TimeSeriesDataset(X_train, seq_len=config['seq_length'])
@@ -135,7 +135,7 @@ def main(num_samples=50, max_num_epochs=10, gpus_per_trial=3):
     reporter = CLIReporter(
         parameter_columns=["seq_length", "nhid", "levels",
                            "kernel_size", "dropout", "lr", "batch_size"],
-        metric_columns=["3","6","12", "training_iteration"]
+        metric_columns=["3", "6", "12", "training_iteration"]
     )
     result = tune.run(
         partial(train),

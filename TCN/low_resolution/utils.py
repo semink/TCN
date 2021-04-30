@@ -1,6 +1,21 @@
 import torch
 import pandas as pd
 
+class StandardScaler:
+    def __init__(self, mean=0, std=1):
+        self.mean = mean
+        self.std = std
+
+    def fit(self, df):
+        self.mean = df.mean()
+        self.std = df.std()
+
+    def transform(self, x):
+        return (x-self.mean)/self.std
+
+    def inverse_transform(self, x):
+        return x*self.std+self.mean
+
 
 class TimeSeriesDataset(torch.utils.data.Dataset):
     def __init__(self, X, seq_len=1, y_offset=1):
