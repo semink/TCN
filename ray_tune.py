@@ -40,12 +40,20 @@ def evaluate(valid_loader, scaler, model, device, criterion, steps_ahead=1):
 
 
 def train(config, checkpoint_dir=None):
+    # Load dataset
+    # df_train, df_valid = get_traffic_data()
+    df_0 = pd.read_csv('/home/semin_noadmin/workspace/TCN/low_resol.csv', index_col=0).fillna(0)
+    df_0.index = pd.to_datetime(df_0.index)
+
+    df_train, df_valid = df_0[:'2017-05-15'], df_0['2017-05-16':]
+
     # Note: We use a very simple setting here (assuming all levels have the same # of channels.
     model = LowResolutionTCN(output_size=config['input_dim'],
                              seq_length=config['seq_length'],
                              num_channels=[config['nhid']] * config['levels'],
                              kernel_size=config['kernel_size'],
-                             dropout=config['dropout'])
+                             dropout=config['dropout'],
+                             dt = df_train.index[1]-df_train.index[0])
     device = "cpu"
     if torch.cuda.is_available():
         device = "cuda:0"
@@ -62,12 +70,7 @@ def train(config, checkpoint_dir=None):
         model.load_state_dict(model_state)
         optimizer.load_state_dict(optimizer_state)
 
-    # Load dataset
-    # df_train, df_valid = get_traffic_data()
-    df_0 = pd.read_csv('/home/semin_noadmin/workspace/TCN/low_resol.csv', index_col=0).fillna(0)
-    df_0.index = pd.to_datetime(df_0.index)
 
-    df_train, df_valid = df_0[:'2017-05-15'], df_0['2017-05-16':]
     num_feature = df_0.shape[1]
     scaler = StandardScaler(mask=(0, num_feature))
     X_train = scaler.fit_transform(np.column_stack(df_train.values, get_euler_time(df_train.index)))
