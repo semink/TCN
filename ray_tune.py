@@ -12,9 +12,10 @@ from torch import nn
 import pandas as pd
 
 from TCN.low_resolution.model import LowResolutionTCN
-from TCN.low_resolution.utils import get_traffic_data, TimeSeriesDataset, StandardScaler
+from TCN.low_resolution.utils import get_traffic_data, TimeSeriesDataset, StandardScaler, get_euler_time
 
-#from sklearn.preprocessing import StandardScaler
+
+# from sklearn.preprocessing import StandardScaler
 
 
 def evaluate(valid_loader, scaler, model, device, criterion, steps_ahead=1):
@@ -25,12 +26,13 @@ def evaluate(valid_loader, scaler, model, device, criterion, steps_ahead=1):
     for i, (x, y) in enumerate(valid_loader):
         with torch.no_grad():
             x, y = x.float().to(device), y.float().to(device).unsqueeze(1)
-            for _ in range(steps_ahead):
+            for j in range(steps_ahead):
                 output = model(x)
                 x = torch.cat((x[:, 1:, :], output), dim=1)
             total += y.size(0)
-            loss = criterion(torch.from_numpy(np.apply_along_axis(scaler.inverse_transform, -1, output.cpu())), 
-                    torch.from_numpy(np.apply_along_axis(scaler.inverse_transform, -1, y.cpu())))
+            loss = criterion(
+                torch.from_numpy(np.apply_along_axis(scaler.inverse_transform, -1, output.cpu()))[:, :, :-2],
+                torch.from_numpy(np.apply_along_axis(scaler.inverse_transform, -1, y.cpu()))[:, :, :-2])
             val_loss += loss.cpu().numpy()
             val_steps += 1
     loss = val_loss / val_steps
@@ -39,7 +41,7 @@ def evaluate(valid_loader, scaler, model, device, criterion, steps_ahead=1):
 
 def train(config, checkpoint_dir=None):
     # Note: We use a very simple setting here (assuming all levels have the same # of channels.
-    model = LowResolutionTCN(input_size=config['input_dim'],
+    model = LowResolutionTCN(output_size=config['input_dim'],
                              seq_length=config['seq_length'],
                              num_channels=[config['nhid']] * config['levels'],
                              kernel_size=config['kernel_size'],
@@ -64,10 +66,12 @@ def train(config, checkpoint_dir=None):
     # df_train, df_valid = get_traffic_data()
     df_0 = pd.read_csv('/home/semin_noadmin/workspace/TCN/low_resol.csv', index_col=0).fillna(0)
     df_0.index = pd.to_datetime(df_0.index)
+
     df_train, df_valid = df_0[:'2017-05-15'], df_0['2017-05-16':]
-    scaler = StandardScaler()
-    X_train = scaler.fit_transform(df_train.values)
-    X_valid = scaler.transform(df_valid.values)
+    num_feature = df_0.shape[1]
+    scaler = StandardScaler(mask=(0, num_feature))
+    X_train = scaler.fit_transform(np.column_stack(df_train.values, get_euler_time(df_train.index)))
+    X_valid = scaler.transform(np.column_stack(df_valid.values, get_euler_time(df_valid.index)))
 
     train_dataset = TimeSeriesDataset(X_train, seq_len=config['seq_length'])
     train_loader = torch.utils.data.DataLoader(train_dataset,
@@ -84,7 +88,7 @@ def train(config, checkpoint_dir=None):
             optimizer.zero_grad()
 
             output = model(x)
-            loss = criterion(output, y)
+            loss = criterion(output[:, :, :num_feature], y[:, :, :num_feature])
             loss.backward()
             # if args.clip > 0:
             #     torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)
@@ -149,7 +153,7 @@ def main(num_samples=50, max_num_epochs=10, gpus_per_trial=3):
     )
 
     best_trial = result.get_best_trial("loss", "min", "last")
-    #print("Best trial config: {}".format(best_trial.config))
+    # print("Best trial config: {}".format(best_trial.config))
     print(f"Best trial: {best_trial}")
     print("Best trial final validation loss: {}".format(
         best_trial.last_result["loss"]))
