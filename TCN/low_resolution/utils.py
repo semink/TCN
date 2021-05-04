@@ -10,22 +10,20 @@ class StandardScaler():
         self.mask = mask
 
     def fit(self, X):
-        self.mean = np.mean(X[self.mask[0]:self.mask[1]], axis=0)
-        self.std = np.std(X[self.mask[0]:self.mask[1]], axis=0)
+        self.mean = np.mean(X[:,self.mask[0]:self.mask[1]], axis=0)
+        self.std = np.std(X[:,self.mask[0]:self.mask[1]], axis=0)
 
     def fit_transform(self, X):
         self.fit(X)
         return self.transform(X)
 
     def transform(self, X):
-        masked_X = (X[self.mask[0]:self.mask[1]] - self.mean) / self.std
-        residual_X = X[self.mask[1]:]
-        return np.concatenate((masked_X, residual_X))
+        X[:,self.mask[0]:self.mask[1]] = (X[:,self.mask[0]:self.mask[1]] - self.mean) / self.std
+        return X 
 
     def inverse_transform(self, X):
-        masked_X = X[self.mask[0]:self.mask[1]] * self.std + self.mean
-        residual_X = X[self.mask[1]:]
-        return np.concatenate((masked_X, residual_X))
+        X[self.mask[0]:self.mask[1]] = X[self.mask[0]:self.mask[1]] * self.std + self.mean
+        return X
 
 
 class TimeSeriesDataset(torch.utils.data.Dataset):
@@ -41,7 +39,7 @@ class TimeSeriesDataset(torch.utils.data.Dataset):
         return self.X[index:index + self.seq_len], self.X[index + self.seq_len + self.y_offset - 1]
 
 
-def get_euler_time(self, hour_time_vec):
+def get_euler_time(hour_time_vec):
     """
     @param hour_time_vec: pandas datetime vector
     """
@@ -49,8 +47,8 @@ def get_euler_time(self, hour_time_vec):
     hour_to_min = 60
     max_second_per_day = 24 * hour_to_min * min_to_sec
 
-    time_to_float = hour_time_vec.hour * self.hour_to_min * self.min_to_sec \
-                    + hour_time_vec.minute * self.min_to_sec + hour_time_vec.second
+    time_to_float = hour_time_vec.hour * hour_to_min * min_to_sec \
+                    + hour_time_vec.minute * min_to_sec + hour_time_vec.second
     return np.column_stack((np.cos(time_to_float / max_second_per_day * 2 * np.pi),
                             np.sin(time_to_float / max_second_per_day * 2 * np.pi)))
 

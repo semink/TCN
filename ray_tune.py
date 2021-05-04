@@ -73,8 +73,8 @@ def train(config, checkpoint_dir=None):
 
     num_feature = df_0.shape[1]
     scaler = StandardScaler(mask=(0, num_feature))
-    X_train = scaler.fit_transform(np.column_stack(df_train.values, get_euler_time(df_train.index)))
-    X_valid = scaler.transform(np.column_stack(df_valid.values, get_euler_time(df_valid.index)))
+    X_train = scaler.fit_transform(np.column_stack((df_train.values, get_euler_time(df_train.index))))
+    X_valid = scaler.transform(np.column_stack((df_valid.values, get_euler_time(df_valid.index))))
 
     train_dataset = TimeSeriesDataset(X_train, seq_len=config['seq_length'])
     train_loader = torch.utils.data.DataLoader(train_dataset,
@@ -127,7 +127,7 @@ def train(config, checkpoint_dir=None):
 def main(num_samples=50, max_num_epochs=10, gpus_per_trial=3):
     config = {"input_dim": 3,
               "steps_ahead": [3, 6, 12],
-              "seq_length": tune.sample_from(lambda _: 2 ** np.random.randint(4, 9)),
+              "seq_length": tune.sample_from(lambda _: 2 ** np.random.randint(2, 9)),
               "nhid": tune.sample_from(lambda _: 2 ** np.random.randint(3, 7)),
               "levels": tune.sample_from(lambda _: 2 ** np.random.randint(1, 4)),
               "kernel_size": tune.sample_from(lambda _: 2 ** np.random.randint(1, 5)),

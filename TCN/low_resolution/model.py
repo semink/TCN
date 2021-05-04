@@ -35,15 +35,15 @@ class TimePassing(nn.Module):
         self.min_to_sec = 60
         self.hour_to_min = 60
         self.max_second_per_day = 24 * self.hour_to_min * self.min_to_sec
-        self.dt_sec = dt.hour * self.hour_to_min * self.min_to_sec + dt.minute * self.min_to_sec + dt.second
+        self.dt_sec = dt.total_seconds()
 
     def forward(self, x):
-        x = x[:, -1, :].copy()  # only need the last element (x_t)
+        x = x[:, -1:, -2:]  # only need the last element (x_t)
         cos, sin = x[:, :, -2], x[:, :, -1]
-        new_cos = cos * torch.cos(self.dt_sec / self.max_second_per_day * 2 * np.pi) - \
-                  sin * torch.sin(self.dt_sec / self.max_second_per_day * 2 * np.pi)
-        new_sin = cos * torch.sin(self.dt_sec / self.max_second_per_day * 2 * np.pi) + \
-                  sin * torch.cos(self.dt_sec / self.max_second_per_day * 2 * np.pi)
+        new_cos = cos * np.cos(self.dt_sec / self.max_second_per_day * 2 * np.pi) - \
+                  sin * np.sin(self.dt_sec / self.max_second_per_day * 2 * np.pi)
+        new_sin = cos * np.sin(self.dt_sec / self.max_second_per_day * 2 * np.pi) + \
+                  sin * np.cos(self.dt_sec / self.max_second_per_day * 2 * np.pi)
         x[:, :, -2] = new_cos
         x[:, :, -1] = new_sin
         return x
