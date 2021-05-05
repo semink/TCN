@@ -43,6 +43,7 @@ class TemporalBlock(nn.Module):
         out = self.net(x)
         res = x if self.downsample is None else self.downsample(x)
         return self.relu(out + res)
+        return out
 
 
 class TemporalConvNet(nn.Module):

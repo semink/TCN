@@ -12,10 +12,7 @@ from torch import nn
 import pandas as pd
 
 from TCN.low_resolution.model import LowResolutionTCN
-from TCN.low_resolution.utils import get_traffic_data, TimeSeriesDataset, StandardScaler, get_euler_time
-
-
-# from sklearn.preprocessing import StandardScaler
+from TCN.low_resolution.utils import TimeSeriesDataset, StandardScaler, get_euler_time, get_traffic_data
 
 
 def evaluate(valid_loader, scaler, model, device, criterion, steps_ahead=1):
@@ -25,14 +22,14 @@ def evaluate(valid_loader, scaler, model, device, criterion, steps_ahead=1):
     total = 0
     for i, (x, y) in enumerate(valid_loader):
         with torch.no_grad():
-            x, y = x.float().to(device), y.float().to(device).unsqueeze(1)
+            x, y = x.float().to(device), y.float().to(device).unsqueeze(-1)
             for j in range(steps_ahead):
                 output = model(x)
-                x = torch.cat((x[:, 1:, :], output), dim=1)
+                x = torch.cat((x[:, :, 1:], output), dim=-1)
             total += y.size(0)
             loss = criterion(
-                torch.from_numpy(np.apply_along_axis(scaler.inverse_transform, -1, output.cpu()))[:, :, :-2],
-                torch.from_numpy(np.apply_along_axis(scaler.inverse_transform, -1, y.cpu()))[:, :, :-2])
+                torch.from_numpy(np.apply_along_axis(scaler.inverse_transform, 1, output.cpu()))[:, :-2, :],
+                torch.from_numpy(np.apply_along_axis(scaler.inverse_transform, 1, y.cpu()))[:, :-2, :])
             val_loss += loss.cpu().numpy()
             val_steps += 1
     loss = val_loss / val_steps
@@ -41,11 +38,7 @@ def evaluate(valid_loader, scaler, model, device, criterion, steps_ahead=1):
 
 def train(config, checkpoint_dir=None):
     # Load dataset
-    # df_train, df_valid = get_traffic_data()
-    df_0 = pd.read_csv('/home/semin_noadmin/workspace/TCN/low_resol.csv', index_col=0).fillna(0)
-    df_0.index = pd.to_datetime(df_0.index)
-
-    df_train, df_valid = df_0[:'2017-05-15'], df_0['2017-05-16':]
+    df_train, df_valid = get_traffic_data()
 
     # Note: We use a very simple setting here (assuming all levels have the same # of channels.
     model = LowResolutionTCN(output_size=config['input_dim'],
@@ -53,7 +46,7 @@ def train(config, checkpoint_dir=None):
                              num_channels=[config['nhid']] * config['levels'],
                              kernel_size=config['kernel_size'],
                              dropout=config['dropout'],
-                             dt = df_train.index[1]-df_train.index[0])
+                             dt=df_train.index[1] - df_train.index[0])
     device = "cpu"
     if torch.cuda.is_available():
         device = "cuda:0"
@@ -70,8 +63,7 @@ def train(config, checkpoint_dir=None):
         model.load_state_dict(model_state)
         optimizer.load_state_dict(optimizer_state)
 
-
-    num_feature = df_0.shape[1]
+    num_feature = df_train.shape[1]
     scaler = StandardScaler(mask=(0, num_feature))
     X_train = scaler.fit_transform(np.column_stack((df_train.values, get_euler_time(df_train.index))))
     X_valid = scaler.transform(np.column_stack((df_valid.values, get_euler_time(df_valid.index))))
@@ -86,12 +78,12 @@ def train(config, checkpoint_dir=None):
         running_loss = 0.0
         epoch_steps = 0
         for i, (x, y) in enumerate(train_loader):
-            x, y = x.float().to(device), y.float().to(device).unsqueeze(1)
+            x, y = x.float().to(device), y.float().to(device).unsqueeze(-1)
             # zero the parameter gradients
             optimizer.zero_grad()
 
             output = model(x)
-            loss = criterion(output[:, :, :num_feature], y[:, :, :num_feature])
+            loss = criterion(output[:, :num_feature, :], y[:, :num_feature, :])
             loss.backward()
             # if args.clip > 0:
             #     torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)
@@ -114,7 +106,7 @@ def train(config, checkpoint_dir=None):
                                                        batch_size=config['batch_size'],
                                                        shuffle=True,
                                                        num_workers=8)
-            loss[f'{steps}'] = evaluate(valid_loader, scaler, model, device, criterion, steps_ahead=steps)
+            loss[f'{str(steps)}'] = evaluate(valid_loader, scaler, model, device, criterion, steps_ahead=steps)
 
         with tune.checkpoint_dir(epoch) as checkpoint_dir:
             path = os.path.join(checkpoint_dir, "checkpoint")
@@ -124,22 +116,22 @@ def train(config, checkpoint_dir=None):
     print("Finished Training")
 
 
-def main(num_samples=50, max_num_epochs=10, gpus_per_trial=3):
+def main(num_samples=10, max_num_epochs=10, gpus_per_trial=3):
     config = {"input_dim": 3,
               "steps_ahead": [3, 6, 12],
-              "seq_length": tune.sample_from(lambda _: 2 ** np.random.randint(2, 9)),
+              "seq_length": tune.sample_from(lambda _: 2 ** np.random.randint(4, 9)),
               "nhid": tune.sample_from(lambda _: 2 ** np.random.randint(3, 7)),
               "levels": tune.sample_from(lambda _: 2 ** np.random.randint(1, 4)),
               "kernel_size": tune.sample_from(lambda _: 2 ** np.random.randint(1, 5)),
-              "dropout": tune.choice([0, 0.1, 0.5]),
+              "dropout": tune.choice([0, 0.1, 0.2]),
               "lr": tune.loguniform(1e-4, 1e-1),
               "batch_size": tune.choice([8, 16, 32, 64, 128])}
     scheduler = ASHAScheduler(
-        metric="3",
+        metric='3',
         mode="min",
         max_t=max_num_epochs,
-        grace_period=1,
-        reduction_factor=2
+        grace_period=5,
+        reduction_factor=3
     )
     reporter = CLIReporter(
         parameter_columns=["seq_length", "nhid", "levels",
@@ -154,13 +146,10 @@ def main(num_samples=50, max_num_epochs=10, gpus_per_trial=3):
         scheduler=scheduler,
         progress_reporter=reporter
     )
-
-    best_trial = result.get_best_trial("loss", "min", "last")
-    # print("Best trial config: {}".format(best_trial.config))
-    print(f"Best trial: {best_trial}")
+    best_trial = result.get_best_trial("3", "min", "last")
+    print("Best trial config: {}".format(best_trial.config))
     print("Best trial final validation loss: {}".format(
-        best_trial.last_result["loss"]))
-
+        best_trial.last_result["3"]))
     # best_trained_model = LowResolutionTCN(input_size=best_trial.config['input_dim'],
     #                                       compress_dim=best_trial.config['compress_dim'],
     #                                       seq_length=best_trial.config['seq_length'],
@@ -181,4 +170,4 @@ def main(num_samples=50, max_num_epochs=10, gpus_per_trial=3):
 
 
 if __name__ == "__main__":
-    main(num_samples=20, max_num_epochs=10, gpus_per_trial=2)
+    main(num_samples=20, max_num_epochs=20, gpus_per_trial=2)
