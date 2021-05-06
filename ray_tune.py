@@ -119,11 +119,11 @@ def train(config, checkpoint_dir=None):
 def main(num_samples=10, max_num_epochs=10, gpus_per_trial=3):
     config = {"input_dim": 3,
               "steps_ahead": [3, 6, 12],
-              "seq_length": tune.sample_from(lambda _: 2 ** np.random.randint(4, 9)),
+              "seq_length": tune.sample_from(lambda _: 2 ** np.random.randint(8, 11)),
               "nhid": tune.sample_from(lambda _: 2 ** np.random.randint(3, 7)),
               "levels": tune.sample_from(lambda _: 2 ** np.random.randint(1, 4)),
               "kernel_size": tune.sample_from(lambda _: 2 ** np.random.randint(1, 5)),
-              "dropout": tune.choice([0, 0.1, 0.2]),
+              "dropout": tune.choice([0]),
               "lr": tune.loguniform(1e-4, 1e-1),
               "batch_size": tune.choice([8, 16, 32, 64, 128])}
     scheduler = ASHAScheduler(

@@ -12,25 +12,24 @@ class LowResolutionTCN(nn.Module):
                  dropout: float,
                  dt):
         super(LowResolutionTCN, self).__init__()
-        self.tcn = TemporalConvNet(output_size+2, num_channels, kernel_size=kernel_size, dropout=dropout)
-        self.linear = nn.Linear(num_channels[-1], output_size)
+        self.tcn = TemporalConvNet(output_size, num_channels, kernel_size=kernel_size, dropout=dropout)
+        self.linear1 = nn.Linear(num_channels[-1] + 2, output_size)
+        # self.linear2 = nn.Linear(output_size, output_size)
+        # self.fc = nn.Sequential(self.linear1, nn.Sigmoid(), self.linear2)
         self.euler_clock = TimePassing(dt)
         self.output_size = output_size
         self.init_weights()
 
     def init_weights(self):
-        self.linear.weight.data.normal_(0, 0.01)
+        self.linear1.weight.data.normal_(0, 0.1)
+        # self.linear2.weight.data.normal_(0, 0.1)
 
     def forward(self, x):
-        # x: (batch x seq_length x (features + time features (2))
-        # y: (batch x 1 x time features (2))
+        # x: (batch x (features + time features (2) x seq_length)
+        # y: (batch x time features (2) x 1)
         y = self.euler_clock(x.transpose(1, 2)).transpose(1, 2)  # wind a tick (anti-clockwise)
-        # x:
-        # x = x[:, :self.selfoutput_size, :]
-        # x = self.tcn(x_t.transpose(1, 2)).transpose(1, 2)
-        x = self.tcn(x)
-        # x = self.linear(torch.cat((x[:, -1, :], torch.squeeze(y)), dim=-1)).unsqueeze(1)
-        x = self.linear(x[:, :, -1])
+        x = self.tcn(x[:, :self.output_size, :])
+        x = self.linear1(torch.cat((x[:, :, -1:], y), dim=1).squeeze())
         x = torch.cat((x.unsqueeze(-1), y), dim=1)
         return x
 
